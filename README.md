@@ -55,7 +55,6 @@ belongs to the LiteLLM maintainers. This repository contains the analysis of bot
 **Contents** — [`root-cause.md`](CVE-2026-59822/root-cause.md) ·
 [`reproduction.md`](CVE-2026-59822/reproduction.md) ·
 [`detection.md`](CVE-2026-59822/detection.md) ·
-[`exposure.md`](CVE-2026-59822/exposure.md) ·
 [Nuclei template](CVE-2026-59822/litellm-cve-2026-59822.yaml) ·
 [`lab/`](CVE-2026-59822/lab/)
 
@@ -70,7 +69,6 @@ request path from the network-facing endpoint to the flawed check.
 **`reproduction.md`** — what was actually executed, against which versions, with the
 observed responses on both the vulnerable and the fixed build.
 **`detection.md`** — what it looks like in logs, and what artifacts it leaves behind.
-**`exposure.md`** — how to count exposed instances, and what is and is not known.
 
 Where something was not verified, the document says so rather than estimating.
 
