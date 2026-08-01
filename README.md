@@ -6,7 +6,7 @@
 
 Root-cause analysis · reproduction · detection engineering
 
-[![Findings](https://img.shields.io/badge/findings-1-a855f7?style=for-the-badge&labelColor=030108)](#findings)
+[![Findings](https://img.shields.io/badge/findings-3-a855f7?style=for-the-badge&labelColor=030108)](#findings)
 [![Focus](https://img.shields.io/badge/focus-AI%20infrastructure-22d3ee?style=for-the-badge&labelColor=030108)](#findings)
 [![Companion](https://img.shields.io/badge/companion-kernel--nday--exploits-f59e0b?style=for-the-badge&labelColor=030108)](https://github.com/Aviral2642/kernel-nday-exploits)
 
@@ -24,7 +24,83 @@ Root-cause analysis · reproduction · detection engineering
 
 | CVE | Product | Class | Affected | Fixed |
 |---|---|---|---|---|
+| [CVE-2026-12940](CVE-2026-12940/) | Langflow | MCP stdio env-var injection → RCE | 1.0.0 – 1.10.1 | 1.10.2 |
+| [CVE-2026-56671](CVE-2026-56671/) | ComfyUI | file-serving: traversal ×2, content-type ×2 | < 0.28.0 | 0.28.0 |
 | [CVE-2026-59822](CVE-2026-59822/) | LiteLLM | MCP authentication bypass | < 1.84.0 | 1.84.0 |
+
+A theme worth naming: all three findings are MCP or file-serving surfaces that
+were mounted outside the checks their own framework already had. The transport
+arrived before the review did.
+
+---
+
+### CVE-2026-12940 — Langflow MCP stdio environment-variable injection
+
+N-day analysis of a defect fixed in Langflow 1.10.2. The reporter is not named
+in any readable source — [GHSA-gx45-8jc3-gqqr](https://github.com/advisories/GHSA-gx45-8jc3-gqqr)
+carries an empty credits array and IBM's bulletin is not publicly fetchable —
+so attribution is recorded as unknown rather than guessed.
+
+Langflow's MCP client can run a server as a local subprocess. Through 1.10.1 the
+subprocess was not the configured command: it was `bash -c "exec <command> || …"`,
+with the caller-supplied `env` mapping merged in last, overriding everything.
+
+Bash reads `SHELLOPTS` from its environment at startup and enables the listed
+options before running anything. With `xtrace` on, bash expands `PS4` — performing
+command substitution inside it — to print each trace line. `SHELLOPTS=xtrace`
+plus `PS4='$(…)'` therefore executes attacker-controlled code in Langflow's own
+uid before the configured command is ever reached.
+
+The advisory frames this as an incomplete blocklist. That holds for one of the
+two paths reaching the launcher; on the other there was no blocklist at all. The
+fix took both routes: [`2e46d06`](https://github.com/langflow-ai/langflow/commit/2e46d063ac9cb642503868d42c713f8f5f4d4740)
+blocks the dangerous variables, [`ae7f166`](https://github.com/langflow-ai/langflow/commit/ae7f1668c608578482ebad141ecb0d3500708550)
+removes the shell wrapper entirely.
+
+One qualification is stated in the analysis rather than buried: the advisory's
+unauthenticated (`PR:N`) rating could not be reproduced from source for a
+default-configured 1.10.1. The routes are traced and the `AUTO_LOGIN` precondition
+named. That is source reading, not a refutation of the CNA's rating.
+
+**Contents** — [`root-cause.md`](CVE-2026-12940/root-cause.md) ·
+[`reproduction.md`](CVE-2026-12940/reproduction.md) ·
+[`detection.md`](CVE-2026-12940/detection.md) ·
+[Nuclei template](CVE-2026-12940/langflow-cve-2026-12940.yaml)
+
+---
+
+### CVE-2026-56671 and siblings — ComfyUI's file-serving surface
+
+N-day analysis of four CVEs fixed together in ComfyUI 0.28.0 by
+[`96e0e35`](https://github.com/comfyanonymous/ComfyUI/commit/96e0e3585b41e1417442eaa14ec57f7b4ffcb5e0)
+(PR #14734). Reporters are credited per advisory in
+[`root-cause.md`](CVE-2026-56671/root-cause.md).
+
+ComfyUI has no authentication; every route here is reachable by anyone who can
+reach the port. The four are one defect class in four places — a file endpoint
+takes a string from the request, picks a file on disk, and hands it to the
+browser — with one of the two decisions that make that safe missing:
+
+| CVE | Endpoint | Class |
+|---|---|---|
+| [CVE-2026-56671](CVE-2026-56671/) | `/experiment/models/preview/…` | path traversal |
+| [CVE-2026-56673](CVE-2026-56671/) | `folder_paths.get_annotated_filepath` via `/prompt` | path traversal |
+| [CVE-2026-56670](CVE-2026-56671/) | `/view` | SVG served inline |
+| [CVE-2026-56672](CVE-2026-56671/) | `/userdata/{file}` | HTML/SVG served inline |
+
+That the fix is two shared primitives — `is_within_directory()` and
+`is_dangerous_content_type()` — rather than four separate patches is the
+strongest evidence it is one class, not four coincidences.
+
+Worth flagging for anyone triaging this release: the two XSS issues score
+*higher* than the two traversals (8.2 vs 7.5), because scope change outweighs
+the user-interaction discount. "Path traversal sounds worse than XSS" gets this
+release backwards.
+
+**Contents** — [`root-cause.md`](CVE-2026-56671/root-cause.md) ·
+[`reproduction.md`](CVE-2026-56671/reproduction.md) ·
+[`detection.md`](CVE-2026-56671/detection.md) ·
+[Nuclei template](CVE-2026-56671/comfyui-0.28.0.yaml)
 
 ---
 
