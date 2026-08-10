@@ -6,7 +6,7 @@
 
 Root-cause analysis · reproduction · detection engineering
 
-[![Findings](https://img.shields.io/badge/findings-3-a855f7?style=for-the-badge&labelColor=030108)](#findings)
+[![Findings](https://img.shields.io/badge/findings-7-a855f7?style=for-the-badge&labelColor=030108)](#findings)
 [![Focus](https://img.shields.io/badge/focus-AI%20infrastructure-22d3ee?style=for-the-badge&labelColor=030108)](#findings)
 [![Companion](https://img.shields.io/badge/companion-kernel--nday--exploits-f59e0b?style=for-the-badge&labelColor=030108)](https://github.com/Aviral2642/kernel-nday-exploits)
 
@@ -27,10 +27,24 @@ Root-cause analysis · reproduction · detection engineering
 | [CVE-2026-12940](CVE-2026-12940/) | Langflow | MCP stdio env-var injection → RCE | 1.0.0 – 1.10.1 | 1.10.2 |
 | [CVE-2026-56671](CVE-2026-56671/) | ComfyUI | file-serving: traversal ×2, content-type ×2 | < 0.28.0 | 0.28.0 |
 | [CVE-2026-59822](CVE-2026-59822/) | LiteLLM | MCP authentication bypass | < 1.84.0 | 1.84.0 |
+| [CVE-2026-69255](CVE-2026-69255/) | Flowise | CSV Agent Pyodide code injection → RCE | ≤ 3.1.2 | 3.1.3 |
+| [CVE-2026-69254](CVE-2026-69254/) | Flowise | NodeVM sandbox escape → RCE | < 3.1.3 | 3.1.3 |
+| [CVE-2026-68771](CVE-2026-68771/) | ComfyUI | `LoadTrainingDataset` pickle deserialization → RCE | ≤ 0.23.0 | 0.23.1 |
+| [CVE-2026-8446](CVE-2026-8446/) | Langflow | MCP composer authentication bypass | 1.0.0 – 1.10.3 | 1.11.0 |
 
-A theme worth naming: all three findings are MCP or file-serving surfaces that
-were mounted outside the checks their own framework already had. The transport
-arrived before the review did.
+A theme worth naming: the MCP and file-serving surfaces keep getting mounted
+outside the checks their own framework already had — the transport arrives
+before the review does. The four newest findings sharpen it: two are the same
+control on the wrong door (Flowise's Python denylist guards the LLM's output
+while raw user input walks past it; Langflow's auth gate covers `apikey`
+projects but not the `oauth` sibling), and two are the oldest sinks in the book
+(a `torch.load` pickle and a merge that lets caller options widen a sandbox)
+reappearing inside an AI product.
+
+> The four 2026-69xxx / 68771 / 8446 findings ship a runnable **`exploit.py`**
+> alongside the writeups — a marker-command PoC for the RCEs, a tools-list probe
+> for the auth bypass. Each runs one benign action and stops: no reverse shell,
+> no persistence, no lateral movement. All target public, patched versions.
 
 ---
 
@@ -133,6 +147,71 @@ belongs to the LiteLLM maintainers. This repository contains the analysis of bot
 [`detection.md`](CVE-2026-59822/detection.md) ·
 [Nuclei template](CVE-2026-59822/litellm-cve-2026-59822.yaml) ·
 [`lab/`](CVE-2026-59822/lab/)
+
+---
+
+### CVE-2026-69255 — Flowise CSV Agent Pyodide code injection
+
+Flowise's CSV Agent interpolates an attacker-controlled segment of the `csvFile`
+data URI straight into a Python source string that Pyodide executes — and the
+node's two Python validators only ever inspect the custom `read_csv` field and
+the *LLM-generated* code, never this block. Closing the string literal yields
+arbitrary Python; Pyodide's default `js`→`globalThis` bridge exposes Node's
+`process`, so `process.mainModule.constructor._load('child_process').execSync(…)`
+escapes the WASM sandbox to OS commands. Reachable pre-auth through the ungated
+`overrideConfig` spread. Fixed in 3.1.3 by deleting the CSV Agent node outright;
+siblings CVE-2026-69264/69256/70470/70477 close with it.
+
+**Contents** — [`root-cause.md`](CVE-2026-69255/root-cause.md) ·
+[`reproduction.md`](CVE-2026-69255/reproduction.md) ·
+[`detection.md`](CVE-2026-69255/detection.md) ·
+[`exploit.py`](CVE-2026-69255/exploit.py) ·
+[Nuclei template](CVE-2026-69255/flowise-cve-2026-69255.yaml)
+
+### CVE-2026-69254 — Flowise NodeVM sandbox escape
+
+`executeJavaScriptCode()` built its NodeVM config as
+`{ ...defaultNodeVMOptions, ...nodeVMOptions }`, letting a caller override the
+hardened `require`/`eval`/`wasm` policy. A low-privileged authenticated user
+reaches the `node-custom-function` route, imports the bundled util, and calls
+`executeJavaScriptCode()` again with a widened `require` — then loads
+`child_process`. Fixed in 3.1.3 by re-applying the secure keys *after* the
+spread.
+
+**Contents** — [`root-cause.md`](CVE-2026-69254/root-cause.md) ·
+[`reproduction.md`](CVE-2026-69254/reproduction.md) ·
+[`detection.md`](CVE-2026-69254/detection.md) ·
+[`exploit.py`](CVE-2026-69254/exploit.py) ·
+[Nuclei template](CVE-2026-69254/flowise-cve-2026-69254.yaml)
+
+### CVE-2026-68771 — ComfyUI `LoadTrainingDataset` pickle RCE
+
+`torch.load()` (default full unpickler) on every `shard_*.pkl` in an output
+subfolder the attacker writes via the unauthenticated `/upload/image`
+(`type=output`). Queue a `/prompt` graph pointing `folder_name` at that folder
+and the pickle's `__reduce__` runs as the ComfyUI user. Default ComfyUI has no
+auth, so both steps are unauthenticated. One-line fix: `weights_only=True`.
+
+**Contents** — [`root-cause.md`](CVE-2026-68771/root-cause.md) ·
+[`reproduction.md`](CVE-2026-68771/reproduction.md) ·
+[`detection.md`](CVE-2026-68771/detection.md) ·
+[`exploit.py`](CVE-2026-68771/exploit.py) ·
+[Nuclei template](CVE-2026-68771/comfyui-cve-2026-68771.yaml)
+
+### CVE-2026-8446 — Langflow MCP composer authentication bypass
+
+With `mcp_composer_enabled=true` (default) and a project configured
+`auth_type=oauth` (the *recommended* hardening), the MCP transport endpoint
+enforced neither an API key nor the OAuth token: `verify_project_auth` only
+demanded a key for `auth_type=apikey`, so OAuth projects fell through to a
+credential-free owner lookup. An unauthenticated caller who knows a project UUID
+enumerates and calls its tools. Fixed in 1.11.0.
+
+**Contents** — [`root-cause.md`](CVE-2026-8446/root-cause.md) ·
+[`reproduction.md`](CVE-2026-8446/reproduction.md) ·
+[`detection.md`](CVE-2026-8446/detection.md) ·
+[`exploit.py`](CVE-2026-8446/exploit.py) ·
+[Nuclei template](CVE-2026-8446/langflow-cve-2026-8446.yaml)
 
 ---
 
