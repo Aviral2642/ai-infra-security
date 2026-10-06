@@ -6,7 +6,7 @@
 
 Root-cause analysis · reproduction · detection engineering
 
-[![Findings](https://img.shields.io/badge/findings-8-a855f7?style=for-the-badge&labelColor=030108)](#findings)
+[![Findings](https://img.shields.io/badge/findings-12-a855f7?style=for-the-badge&labelColor=030108)](#findings)
 [![Focus](https://img.shields.io/badge/focus-AI%20infrastructure-22d3ee?style=for-the-badge&labelColor=030108)](#findings)
 [![Companion](https://img.shields.io/badge/companion-kernel--nday--exploits-f59e0b?style=for-the-badge&labelColor=030108)](https://github.com/Aviral2642/kernel-nday-exploits)
 
@@ -24,6 +24,10 @@ Root-cause analysis · reproduction · detection engineering
 
 | CVE | Product | Class | Affected | Fixed |
 |---|---|---|---|---|
+| [CVE-2026-70478](CVE-2026-70478/) | Flowise | unauthenticated OAuth access-token response | ≤ 3.1.2 | 3.1.3 |
+| [CVE-2026-87016](CVE-2026-87016/) | Open WebUI | SQLite OAuth/SCIM identity wildcard | 0.6.41 – 0.11.0 | 0.11.1 |
+| [CVE-2026-86077](CVE-2026-86077/) | n8n | chat resume of non-chat approval gate | affected 2.37.x / 2.38.x | 2.37.7 / 2.38.2 |
+| [CVE-2026-86080](CVE-2026-86080/) | n8n | GitHub Trigger webhook signature fail-open | affected 1.x / 2.37.x / 2.38.x | 1.123.76 / 2.37.7 / 2.38.2 |
 | [CVE-2026-102697](CVE-2026-102697/) | Ollama experimental agent | Bash session-approval bypass | 0.14.0 – 0.31.1, experimental CLI | 0.31.2 |
 | [CVE-2026-12940](CVE-2026-12940/) | Langflow | MCP stdio env-var injection → RCE | 1.0.0 – 1.10.1 | 1.10.2 |
 | [CVE-2026-56671](CVE-2026-56671/) | ComfyUI | file-serving: traversal ×2, content-type ×2 | < 0.28.0 | 0.28.0 |
@@ -35,7 +39,7 @@ Root-cause analysis · reproduction · detection engineering
 
 A theme worth naming: the MCP and file-serving surfaces keep getting mounted
 outside the checks their own framework already had — the transport arrives
-before the review does. The four newest findings sharpen it: two are the same
+before the review does. Earlier findings show the same
 control on the wrong door (Flowise's Python denylist guards the LLM's output
 while raw user input walks past it; Langflow's auth gate covers `apikey`
 projects but not the `oauth` sibling), and two are the oldest sinks in the book
@@ -46,6 +50,12 @@ reappearing inside an AI product.
 > alongside the writeups — a marker-command PoC for the RCEs, a tools-list probe
 > for the auth bypass. Each runs one benign action and stops: no reverse shell,
 > no persistence, no lateral movement. All target public, patched versions.
+
+---
+
+### October 2026 saved-candidate follow-up
+
+Four distinct advisories from the paused nightly feed were validated and added here. [CVE-2026-87016](CVE-2026-87016/) runs the affected and fixed Open WebUI SQLAlchemy expressions against a local SQLite database; the old OAuth and SCIM lookups match multiple users for a wildcard subject. [CVE-2026-86080](CVE-2026-86080/) runs n8n's pinned released signature-verification helper and confirms the missing-secret fail-open decision. [CVE-2026-86077](CVE-2026-86077/) traces n8n's chat resume authorization before and after the patch and identifies the upstream regression tests. [CVE-2026-70478](CVE-2026-70478/) traces Flowise's unauthenticated OAuth refresh response and the narrower change in 3.1.3, which removes token fields from the response while retaining the route on the authentication whitelist. The n8n chat and Flowise cases were source-reviewed without a full service test. Each writeup names the conditions required for real-world impact and credits the original reporter.
 
 ---
 
