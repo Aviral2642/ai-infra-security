@@ -6,7 +6,7 @@
 
 Root-cause analysis · reproduction · detection engineering
 
-[![Findings](https://img.shields.io/badge/findings-7-a855f7?style=for-the-badge&labelColor=030108)](#findings)
+[![Findings](https://img.shields.io/badge/findings-8-a855f7?style=for-the-badge&labelColor=030108)](#findings)
 [![Focus](https://img.shields.io/badge/focus-AI%20infrastructure-22d3ee?style=for-the-badge&labelColor=030108)](#findings)
 [![Companion](https://img.shields.io/badge/companion-kernel--nday--exploits-f59e0b?style=for-the-badge&labelColor=030108)](https://github.com/Aviral2642/kernel-nday-exploits)
 
@@ -24,6 +24,7 @@ Root-cause analysis · reproduction · detection engineering
 
 | CVE | Product | Class | Affected | Fixed |
 |---|---|---|---|---|
+| [CVE-2026-102697](CVE-2026-102697/) | Ollama experimental agent | Bash session-approval bypass | 0.14.0 – 0.31.1, experimental CLI | 0.31.2 |
 | [CVE-2026-12940](CVE-2026-12940/) | Langflow | MCP stdio env-var injection → RCE | 1.0.0 – 1.10.1 | 1.10.2 |
 | [CVE-2026-56671](CVE-2026-56671/) | ComfyUI | file-serving: traversal ×2, content-type ×2 | < 0.28.0 | 0.28.0 |
 | [CVE-2026-59822](CVE-2026-59822/) | LiteLLM | MCP authentication bypass | < 1.84.0 | 1.84.0 |
@@ -45,6 +46,14 @@ reappearing inside an AI product.
 > alongside the writeups — a marker-command PoC for the RCEs, a tools-list probe
 > for the auth bypass. Each runs one benign action and stops: no reverse shell,
 > no persistence, no lateral movement. All target public, patched versions.
+
+---
+
+### CVE-2026-102697 — Ollama experimental agent approval boundary
+
+N-day follow-up to the [VulnCheck-reported CVE](https://www.cve.org/CVERecord?id=CVE-2026-102697). In v0.31.1, allowing `cat docs/readme.md` for a session records `cat:docs/`, and the old approval manager accepts a later compound Bash command that starts with the same path. The pre-prompt auto-allow code was disabled, so this requires a prior user approval. We reproduced the authorization decision against released source and executed only a harmless marker command in a temporary directory. The v0.31.2 agent uses a replacement approval path.
+
+**Contents** — [`root-cause.md`](CVE-2026-102697/root-cause.md) · [`reproduction.md`](CVE-2026-102697/reproduction.md) · [`detection.md`](CVE-2026-102697/detection.md) · [`reproduce.sh`](CVE-2026-102697/reproduce.sh)
 
 ---
 
