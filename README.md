@@ -6,7 +6,7 @@
 
 Root-cause analysis · reproduction · detection engineering
 
-[![Findings](https://img.shields.io/badge/findings-12-a855f7?style=for-the-badge&labelColor=030108)](#findings)
+[![Findings](https://img.shields.io/badge/findings-13-a855f7?style=for-the-badge&labelColor=030108)](#findings)
 [![Focus](https://img.shields.io/badge/focus-AI%20infrastructure-22d3ee?style=for-the-badge&labelColor=030108)](#findings)
 [![Companion](https://img.shields.io/badge/companion-kernel--nday--exploits-f59e0b?style=for-the-badge&labelColor=030108)](https://github.com/Aviral2642/kernel-nday-exploits)
 
@@ -24,6 +24,7 @@ Root-cause analysis · reproduction · detection engineering
 
 | CVE | Product | Class | Affected | Fixed |
 |---|---|---|---|---|
+| [CVE-2026-104850](CVE-2026-104850/) | MCP TypeScript SDK | OAuth credential issuer confusion | SDK 1.12.0–1.30.1; client 2.0.0–2.1.0 (specified paths) | SDK 1.31.0; client 2.2.0 |
 | [CVE-2026-70478](CVE-2026-70478/) | Flowise | unauthenticated OAuth access-token response | ≤ 3.1.2 | 3.1.3 |
 | [CVE-2026-87016](CVE-2026-87016/) | Open WebUI | SQLite OAuth/SCIM identity wildcard | 0.6.41 – 0.11.0 | 0.11.1 |
 | [CVE-2026-86077](CVE-2026-86077/) | n8n | chat resume of non-chat approval gate | affected 2.37.x / 2.38.x | 2.37.7 / 2.38.2 |
@@ -50,6 +51,14 @@ reappearing inside an AI product.
 > alongside the writeups — a marker-command PoC for the RCEs, a tools-list probe
 > for the auth bypass. Each runs one benign action and stops: no reverse shell,
 > no persistence, no lateral movement. All target public, patched versions.
+
+---
+
+### CVE-2026-104850 — MCP TypeScript SDK OAuth issuer confusion
+
+[Aviral2642 is credited as a co-reporter](https://github.com/advisories/GHSA-6qxp-vccf-f47h) with six other researchers. A malicious or compromised MCP server could name an authorization server it controlled; affected HTTP OAuth clients could send previously held refresh tokens and client secrets, or bundled-provider credentials, there without user interaction. The 1.x and 2.x package ranges differ, and upgrading alone does not bind bundled providers without `expectedIssuer` or old persisted credentials without `issuer`. This entry documents the public advisory and fix, without claiming an independent reproduction.
+
+**Contents** — [`root-cause.md`](CVE-2026-104850/root-cause.md) · [`remediation.md`](CVE-2026-104850/remediation.md)
 
 ---
 
